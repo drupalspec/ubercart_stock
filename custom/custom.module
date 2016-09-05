@@ -1,0 +1,68 @@
+<?php 
+
+function custom_form_alter(&$form, &$form_state, $form_id) {
+  // drupal_set_message("This is the form id : $form_id");
+  if($form_id == 'uc_order_view_update_form') {
+    // echo '<pre>';
+    // // print_r($form);
+    // echo '</pre>';
+    $form['#submit'][] = 'custom_order_form_updater';
+  }
+}
+
+function custom_order_form_updater($form, &$form_state) {
+  $orderId = $form['order_id']['#value'];
+  $orderStatus = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :id", array(':id' => $orderId))->fetchField(); //completed OR canceled
+  $orderProducts = db_query("SELECT order_product_id, qty FROM {uc_order_products} WHERE order_id = :id ", array(':id' => $orderId))->fetchAll();
+  foreach($orderProducts as $item): 
+    $id = $item->order_product_id;
+    $qty = $item->qty;
+    $sku = db_query("SELECT model FROM {uc_products} WHERE nid = :nid", array(':nid' => $id))->fetchField();
+    $nowStok = db_query("SELECT stock FROM {uc_product_stock} WHERE sku = :sku", array(':sku' => $sku))->fetchField();
+    if($orderStatus == 'completed') {
+      $qty = $nowStok - $qty;
+      drupal_set_message("Позиция артикул: $sku x $qty шт., списана со склада.");
+      custom_update_stock($sku, $qty);
+    }
+    if($orderStatus == 'canceled') {
+      $qty = $nowStok + $qty;
+      drupal_set_message("Позиция артикул: $sku x $qty шт., возвращено на склад.");
+      custom_update_stock($sku, $qty);
+    }
+    
+  endforeach;
+}
+
+function custom_update_stock($sku, $qty) {
+  db_update('uc_product_stock')
+    ->fields(array('stock' => $qty))
+    ->condition('sku', $sku)
+    ->execute();
+}
+
+
+
+
+function custom_menu() {
+  $items = array();
+
+  $items['admin/custom_stock'] = array(
+    'title' => 'Умный склад',
+    'description' => 'A form to mess around with.',
+    'page callback' => 'custom_stock_list',
+    'access callback' => TRUE
+  );
+
+  return $items;
+}
+
+
+function custom_stock_list() {
+  
+  return 'Hello';
+}
+
+ 
+
+
+ ?>
