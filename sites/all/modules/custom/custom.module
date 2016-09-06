@@ -1,0 +1,95 @@
+<?php 
+
+function custom_form_alter(&$form, &$form_state, $form_id) {
+  // drupal_set_message("This is the form id : $form_id");
+  if($form_id == 'uc_order_view_update_form') {
+    // echo '<pre>';
+    // print_r($form['current_status']['#value']);
+    // echo '</pre>';
+    // $orderId = $form['order_id']['#value'];
+    // $orderStatus = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :id", array(':id' => $orderId))->fetchField();
+    // if($orderStatus == 'canceled' || $orderStatus == 'completed') {
+    //   unset($form['controls']);
+    // }
+    $form['#submit'][] = 'custom_order_form_updater';
+  }
+}
+
+function custom_order_form_updater($form, &$form_state) {
+  $orderId = $form['order_id']['#value'];
+  $orderStatus = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :id", array(':id' => $orderId))->fetchField(); //completed OR canceled
+  $orderProducts = db_query("SELECT nid, qty FROM {uc_order_products} WHERE order_id = :id ", array(':id' => $orderId))->fetchAll();
+  foreach($orderProducts as $item): 
+    $id = $item->nid;
+    $qty = $item->qty;
+    $sku = db_query("SELECT model FROM {uc_products} WHERE nid = :nid", array(':nid' => $id))->fetchField();
+    $nowStok = db_query("SELECT stock FROM {uc_product_stock} WHERE sku = :sku", array(':sku' => $sku))->fetchField();
+    $nowTresHold = db_query("SELECT threshold FROM {uc_product_stock} WHERE sku = :sku", array(':sku' => $sku))->fetchField();
+    $status = db_query("SELECT active FROM {uc_product_stock} WHERE sku = :sku", array(':sku' => $sku))->fetchField();
+
+    if($status == 0) {
+      if($orderStatus == 'completed') {
+        drupal_set_message("Склад обновлен!");
+        custom_update_stock($sku, $nowStok - $qty);
+        custom_update_stock_threshold($sku, 0);
+        custom_update_stock_active(1, $sku);
+      }
+    }
+    if($status == 1) {
+      if($orderStatus == 'canceled') {
+        drupal_set_message("Склад обновлен!");
+        custom_update_stock($sku, $nowStok + $qty);
+        custom_update_stock_threshold($sku, 0);
+        custom_update_stock_active(0, $sku);
+      }
+    }
+    
+    //processing
+    if($orderStatus == 'processing') {
+      drupal_set_message("Склад обновлен!");
+      custom_update_stock_threshold($sku, $qty);
+    } 
+    
+  endforeach;
+}
+
+function custom_update_stock($sku, $qty) {
+  db_update('uc_product_stock')
+    ->fields(array('stock' => $qty))
+    ->condition('sku', $sku)
+    ->execute();
+}
+
+function custom_update_stock_threshold($sku, $qty) {
+  db_update('uc_product_stock')
+    ->fields(array('threshold' => $qty))
+    ->condition('sku', $sku)
+    ->execute();
+}
+
+
+
+function custom_update_stock_active($arg, $sku) {
+  db_update('uc_product_stock')
+    ->fields(array('active' => $arg))
+    ->condition('sku', $sku)
+    ->execute();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+?>

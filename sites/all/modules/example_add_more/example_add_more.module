@@ -1,0 +1,112 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function example_add_more_menu() {
+  $items = array();
+
+  $items['example/add-more'] = array(
+    'title' => 'Example: "Add more"',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('example_add_more_form'),
+    'access arguments' => array('access content'),
+  );
+  
+  return $items;
+}
+
+/**
+ * Form builder.
+ */
+function example_add_more_form($form, &$form_state) {
+  $form['names'] = array(
+    '#tree' => TRUE,
+    '#prefix' => '<div id="names-wrapper">',
+    '#suffix' => '</div>',
+    '#default_value' => variable_get('names', 7),
+  );
+
+  
+  if (empty($form_state['name_count'])) {
+    $form_state['name_count'] = 1;
+  }
+  
+  for ($i = 0; $i < $form_state['name_count']; $i++) {
+    $form['names']['fieldset'][$i] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Fieldset'),
+      '#collapsible' => TRUE, // Added
+      '#collapsed' => FALSE,  // Added
+    );
+
+
+    $form['names']['fieldset'][$i]['info'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Personal info'),
+    );
+
+    $form['names']['fieldset'][$i]['info']['name'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Name'),
+    );
+
+    $form['names']['fieldset'][$i]['age'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Age'),
+    );
+
+    $form['names']['fieldset'][$i]['age']['myage'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Age'),
+    );
+
+    
+  }
+  
+  $form['add_more'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add more'),
+    '#submit' => array('example_add_more_form_add'),
+    '#ajax' => array(
+      'wrapper' => 'names-wrapper',
+      'callback' => 'example_add_more_form_update',
+    ),
+  );
+  
+  $form['actions'] = array(
+    '#type' => 'actions',
+  );
+  
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  
+  return $form;
+}
+
+/**
+ * "Add more" button submit callback.
+ */
+function example_add_more_form_add($form, &$form_state) {
+  $form_state['name_count']++;
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * "Add more" button ajax callback.
+ */
+function example_add_more_form_update($form, $form_state) {
+
+  return $form['names'];
+}
+
+/**
+ * Form example_add_more_form submit calblack.
+ */
+function example_add_more_form_submit($form, $form_state) {
+  // $form_state['values']['names'];
+  variable_set('names', $form_state['values']['names']);
+  drupal_set_message($names);
+}

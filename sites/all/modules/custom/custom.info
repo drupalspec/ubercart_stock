@@ -1,0 +1,7 @@
+name = Custom stock event
+description = Decrement and increment stock level value on change order status.
+core = 7.x
+package = Custom
+dependencies[] = uc_store
+dependencies[] = uc_product
+dependencies[] = uc_stock
