@@ -2,17 +2,22 @@
 
 function custom_form_alter(&$form, &$form_state, $form_id) {
   // drupal_set_message("This is the form id : $form_id");
+  // if($form_id == 'uc_stock_edit_form') {
+  //   $form['#submit'][] = 'custom_stock_form_updater';
+  // }
   if($form_id == 'uc_order_view_update_form') {
-    // echo '<pre>';
-    // print_r($form['current_status']['#value']);
-    // echo '</pre>';
-    // $orderId = $form['order_id']['#value'];
-    // $orderStatus = db_query("SELECT order_status FROM {uc_orders} WHERE order_id = :id", array(':id' => $orderId))->fetchField();
-    // if($orderStatus == 'canceled' || $orderStatus == 'completed') {
-    //   unset($form['controls']);
-    // }
     $form['#submit'][] = 'custom_order_form_updater';
   }
+  if($form_id == 'node_delete_confirm') {
+    $type = $form_state['build_info']['args'][0]->type;
+    if($type == 'product') {
+      $form['#submit'][] = 'custom_stock_form_updater';
+    }
+  }
+}
+
+function custom_stock_form_updater($form, &$form_state) {
+  $form_state['redirect']  = 'admin/store/custom_stock';
 }
 
 function custom_order_form_updater($form, &$form_state) {
@@ -68,7 +73,6 @@ function custom_update_stock_threshold($sku, $qty) {
 }
 
 
-
 function custom_update_stock_active($arg, $sku) {
   db_update('uc_product_stock')
     ->fields(array('active' => $arg))
@@ -76,18 +80,65 @@ function custom_update_stock_active($arg, $sku) {
     ->execute();
 }
 
+function custom_menu() {
+  $items = array();
+  $items['node/%node/edit/price'] = array(
+    'title' => 'Изменить цену',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_page_form'),
+    'access callback' => TRUE,
+    'type' => MENU_LOCAL_TASK
+  );
+  return $items;
+}
 
 
+function custom_page_form($form, $form_state) {
+  $nid = arg(1);
+  $sell_price = db_query("SELECT sell_price FROM {uc_products} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  $sell_price = $sell_price;
+  $list_price = db_query("SELECT list_price FROM {uc_products} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  $list_price = $list_price;
 
 
+  $form = array();
+  $form['sell_price'] = array(
+    '#type' => 'uc_price',
+    '#title' => t('Sell price'),
+    '#size' => 20,
+    '#required' => TRUE,
+    '#default_value' => $sell_price
+  );
+  $form['list_price'] = array(
+    '#type' => 'uc_price',
+    '#title' => t('List Price'),
+    '#size' => 20,
+    '#required' => TRUE,
+    '#default_value' => $list_price
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+function custom_page_form_submit($form, &$form_state) {
+  $nid = arg(1);
+  $sell_price = $form_state['values']['sell_price'];
+  $list_price  = $form_state['values']['list_price'];
+
+  $sell_price = $sell_price;
+  $list_price = $list_price;
 
 
-
-
-
-
-
-
+  db_update('uc_products')
+    ->fields(array('sell_price' => $sell_price , 'list_price' => $list_price))
+    ->condition('nid', $nid)
+    ->execute();
+   drupal_set_message('Цены успешна обновлены!'); 
+  $form_state['redirect'] = 'admin/store/custom_stock';
+}
 
 
 
