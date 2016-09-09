@@ -1,10 +1,6 @@
 <?php 
 
 function custom_form_alter(&$form, &$form_state, $form_id) {
-  // drupal_set_message("This is the form id : $form_id");
-  // if($form_id == 'uc_stock_edit_form') {
-  //   $form['#submit'][] = 'custom_stock_form_updater';
-  // }
   if($form_id == 'uc_order_view_update_form') {
     $form['#submit'][] = 'custom_order_form_updater';
   }
@@ -48,8 +44,6 @@ function custom_order_form_updater($form, &$form_state) {
         custom_update_stock_active(0, $sku);
       }
     }
-    
-    //processing
     if($orderStatus == 'processing') {
       drupal_set_message("Склад обновлен!");
       custom_update_stock_threshold($sku, $qty);
@@ -100,8 +94,17 @@ function custom_page_form($form, $form_state) {
   $list_price = db_query("SELECT list_price FROM {uc_products} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
   $list_price = $list_price;
 
+  $stock = db_query("SELECT stock FROM {uc_product_stock} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+
 
   $form = array();
+  $form['list_price'] = array(
+    '#type' => 'uc_price',
+    '#title' => t('List Price'),
+    '#size' => 20,
+    '#required' => false,
+    '#default_value' => $list_price
+  );
   $form['sell_price'] = array(
     '#type' => 'uc_price',
     '#title' => t('Sell price'),
@@ -109,12 +112,12 @@ function custom_page_form($form, $form_state) {
     '#required' => TRUE,
     '#default_value' => $sell_price
   );
-  $form['list_price'] = array(
-    '#type' => 'uc_price',
-    '#title' => t('List Price'),
+  $form['stock'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Stock'),
     '#size' => 20,
-    '#required' => TRUE,
-    '#default_value' => $list_price
+    '#required' => false,
+    '#default_value' => $stock
   );
   $form['submit'] = array(
     '#type' => 'submit',
@@ -127,16 +130,46 @@ function custom_page_form_submit($form, &$form_state) {
   $nid = arg(1);
   $sell_price = $form_state['values']['sell_price'];
   $list_price  = $form_state['values']['list_price'];
-
   $sell_price = $sell_price;
   $list_price = $list_price;
-
+  $stock = $form_state['values']['stock'];
+  $sku = db_query("SELECT model FROM {uc_products} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  $active = db_query("SELECT active FROM {uc_product_stock} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  $threshold = db_query("SELECT threshold FROM {uc_product_stock} WHERE nid = :nid", array(':nid' => $nid))->fetchField();
+  if(!$active || $active == 0) {$active = 0;}
+  if(!$threshold || $threshold == 0) {$threshold = 0;}
 
   db_update('uc_products')
-    ->fields(array('sell_price' => $sell_price , 'list_price' => $list_price))
+    ->fields(array(
+      'sell_price' => $sell_price , 
+      'list_price' => $list_price
+    ))
     ->condition('nid', $nid)
     ->execute();
-   drupal_set_message('Цены успешна обновлены!'); 
+
+   // db_update('uc_product_stock')
+   //  ->fields(array('stock' => $stock))
+   //  ->condition('nid', $nid)
+   //  ->execute();
+
+
+    db_merge('uc_product_stock')
+      ->key(array('sku' => $sku))
+      ->updateFields(array(
+        'active' => $active,
+        'stock' => $stock,
+        'threshold' => $threshold,
+      ))
+      ->insertFields(array(
+        'sku' => $sku,
+        'active' => $active,
+        'stock' => $stock,
+        'threshold' => $threshold,
+        'nid' => $nid,
+      ))
+      ->execute();
+
+   drupal_set_message('Данные по наличию успешно обновлены!'); 
   $form_state['redirect'] = 'admin/store/custom_stock';
 }
 

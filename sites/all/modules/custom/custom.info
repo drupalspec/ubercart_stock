@@ -5,3 +5,4 @@ package = Custom
 dependencies[] = uc_store
 dependencies[] = uc_product
 dependencies[] = uc_stock
+dependencies[] = autodialog
