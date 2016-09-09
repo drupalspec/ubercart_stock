@@ -116,7 +116,7 @@ function custom_page_form($form, $form_state) {
     '#type' => 'textfield',
     '#title' => t('Stock'),
     '#size' => 20,
-    '#required' => false,
+    '#required' => TRUE,
     '#default_value' => $stock
   );
   $form['submit'] = array(
@@ -146,12 +146,6 @@ function custom_page_form_submit($form, &$form_state) {
     ))
     ->condition('nid', $nid)
     ->execute();
-
-   // db_update('uc_product_stock')
-   //  ->fields(array('stock' => $stock))
-   //  ->condition('nid', $nid)
-   //  ->execute();
-
 
     db_merge('uc_product_stock')
       ->key(array('sku' => $sku))
